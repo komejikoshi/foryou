@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>for you</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{
+    --bg-start:#111;
+    --bg-end:linear-gradient(to top,#ffcce6 0%,#fff2f9 100%);
+    --transition-time:2s;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg-start);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
+    overflow:hidden;
+    color:#fff;
+    transition:color var(--transition-time);
+  }
+  .overlay{
+    position:fixed;inset:0;
+    background:var(--bg-end);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity var(--transition-time);
+  }
+  body.grad .overlay{opacity:1}
+  body.grad{color:#ff4d6b}
+
+  .box{position:relative;text-align:center;cursor:pointer;user-select:none;z-index:2}
+  .heart{
+    font-size:6rem;color:#ff4d6b;
+    transition:transform .3s;
+  }
+  .heart:hover{transform:scale(1.15)}
+  h1{margin:.8em 0 .3em;font-size:clamp(1.5rem,5vw,2.5rem);font-weight:600;opacity:0;transition:opacity .6s}
+  .beat{animation:pulse 1.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
+
+  .tip{
+    position:absolute;bottom:-3em;left:50%;transform:translateX(-50%);
+    font-size:.9rem;opacity:0;animation:fade 1.5s ease-in-out infinite alternate;
+  }
+  @keyframes fade{from{opacity:0}to{opacity:.7}}
+
+  .mini{
+    position:absolute;font-size:1.2rem;color:#ff4d6b;
+    pointer-events:none;animation:float 4s linear forwards;
+  }
+  @keyframes float{
+    0%{transform:translateY(0) scale(0);opacity:1}
+    20%{transform:translateY(-30px) scale(1);opacity:1}
+    100%{transform:translateY(-200px) scale(.3);opacity:0}
+  }
+
+  #particles{
+    position:fixed;inset:0;
+    pointer-events:none;
+    z-index:1;
+  }
+</style>
+</head>
+<body id="body">
+  <div class="overlay"></div>
+  <canvas id="particles"></canvas>
+
+  <div class="box" id="box">
+    <div class="heart" id="heart">❤️</div>
+    <h1 id="line"></h1>
+    <span class="tip" id="tip">点击心脏开始</span>
+  </div>
+
+<script>
+  const lines = ["今晚的月亮很亮，但不及你","把星星熬成糖，全给你","余生很长，想和你慢慢浪","做我女朋友，好吗？"];
+  let idx = 0, timer = null;
+
+  const body = document.getElementById('body');
+  const h1   = document.getElementById('line');
+  const tip  = document.getElementById('tip');
+  const heart= document.getElementById('heart');
+  const box  = document.getElementById('box');
+
+  // 飘动小心心
+  function createMini() {
+    const el = document.createElement('span');
+    el.className = 'mini';
+    el.innerHTML = '❤️';
+    const size = Math.random()*0.8 + 0.7;
+    el.style.left = Math.random()*100 + '%';
+    el.style.transform = `scale(${size}) rotate(${Math.random()*40-20}deg)`;
+    box.appendChild(el);
+    el.addEventListener('animationend', ()=> el.remove());
+  }
+
+  /* === 缩小 + 慢速 + 心形粒子 === */
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+  let w = canvas.width = innerWidth;
+  let h = canvas.height = innerHeight;
+  const centerX = w / 2;
+  const centerY = h / 2;
+  const scale = 35;            // 缩小到 35（原来 60）
+  const particles = [];
+  const count = 90;            // 粒子数量减一点，保持密度
+
+  // 心形参数方程
+  function heartXY(t){
+    const x = 16 * Math.pow(Math.sin(t),3);
+    const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+    return {x,y};
+  }
+
+  // 初始化粒子
+  function initParticles(){
+    for(let i=0;i<count;i++){
+      const t = (i/count) * Math.PI * 2;
+      const pos = heartXY(t);
+      particles.push({
+        x: centerX + pos.x * scale,
+        y: centerY + pos.y * scale,
+        originX: centerX + pos.x * scale,
+        originY: centerY + pos.y * scale,
+        size: 6 + Math.random()*4,          // 迷你心形大小
+        speed: 0.004 + Math.random()*0.004, // 速度放慢
+        angle: t,
+        alpha: 0.5 + Math.random()*0.4
+      });
+    }
+  }
+
+  // 绘制单个心形
+  function drawMiniHeart(x,y,size,alpha){
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = `${size}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('❤️',x,y);
+    ctx.restore();
+  }
+
+  function drawParticles(){
+    ctx.clearRect(0,0,w,h);
+    particles.forEach(p=>{
+      p.angle += p.speed;
+      const pos = heartXY(p.angle);
+      p.x = centerX + pos.x * scale + Math.sin(p.angle*2)*2;
+      p.y = centerY + pos.y * scale + Math.cos(p.angle*2)*2;
+      drawMiniHeart(p.x,p.y,p.size,p.alpha);
+    });
+    requestAnimationFrame(drawParticles);
+  }
+
+  // 首次点击
+  box.addEventListener('click', () => {
+    if (timer) return;
+    tip.remove();
+    body.classList.add('grad');
+    heart.classList.add('beat');
+    h1.style.opacity = 1;
+    h1.textContent = lines[idx];
+
+    timer = setInterval(() => {
+      idx = (idx + 1) % lines.length;
+      h1.textContent = lines[idx];
+    }, 2000);
+
+    setInterval(createMini, 400);
+    initParticles();
+    drawParticles();
+  }, { once: true });
+
+  window.addEventListener('resize',()=>{
+    w = canvas.width = innerWidth;
+    h = canvas.height = innerHeight;
+  });
+</script>
+</body>
+</html>
